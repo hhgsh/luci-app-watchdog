@@ -1,4 +1,5 @@
-name: Build apk
+name: Build Packages
+
 on:
   workflow_dispatch:
   push:
@@ -21,16 +22,13 @@ jobs:
       - name: Generate Tag Name (Version + Time)
         id: vars
         run: |
-          # 从 Makefile 提取版本号 (位于 luci-app-watchdog/Makefile)
-          VERSION=$(grep -oP '^PKG_VERSION:=\s*\K.*' luci-app-watchdog/Makefile)
-          if [ -z "$VERSION" ]; then VERSION="1.0.0"; fi
+          # 从 Makefile 中提取 PKG_VERSION
+          VERSION=$(grep -oP '^PKG_VERSION:=\s*\K.*' luci-app-watchdog/Makefile 2>/dev/null || echo "1.0.0")
           
-          # 获取当前时间 (格式: 年月日时分，例如 202609301430)
+          # 生成时间戳 (格式: 年月日时分)
           TIME=$(date +"%Y%m%d%H%M")
           
-          # 拼接 Tag，例如 v1.0.8-202609301430
           TAG_NAME="v${VERSION}-${TIME}"
-          
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
           echo "Tag name will be: $TAG_NAME"
 
@@ -42,11 +40,17 @@ jobs:
           PACKAGES: luci-app-watchdog
           NO_REFRESH_CHECK: true
 
+      - name: Collect target APK only
+        run: |
+          # 创建独立的输出目录，仅复制 watchdog 相关的 .apk 产物
+          mkdir -p dist
+          find bin/packages/x86_64/packages_ci/ -type f -name "*watchdog*.apk" -exec cp {} dist/ \;
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-openwrt-25.12
-          path: bin/packages/x86_64/packages_ci/*.apk
+          name: luci-app-watchdog-x86_64-openwrt-25.12
+          path: dist/*
 
       - name: Upload to release
         uses: ncipollo/release-action@v1
@@ -57,5 +61,5 @@ jobs:
           allowUpdates: true
           replacesArtifacts: true
           prerelease: false
-          # 直接上传 apk 产物，省去解压步骤
-          artifacts: "bin/packages/x86_64/packages_ci/*.apk"
+          # 仅上传隔离目录下的 watchdog .apk 文件
+          artifacts: "dist/*"

@@ -8,6 +8,10 @@ on:
     paths:
       - 'luci-app-watchdog/**'
 
+# 赋予 GITHUB_TOKEN 创建和修改 Release 的权限
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build x86_64 for OpenWrt 25.12
@@ -61,5 +65,4 @@ jobs:
           allowUpdates: true
           replacesArtifacts: true
           prerelease: false
-          # 仅上传隔离目录下的 watchdog .apk 文件
           artifacts: "dist/*"
